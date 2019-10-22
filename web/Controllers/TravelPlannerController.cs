@@ -12,14 +12,14 @@ namespace web.Controllers
     [Route("api/travelPlan")]
     public class TravelPlannerController : ControllerBase
     {
-        private static HttpClient HttpClient =
-            new HttpClient() { BaseAddress = new Uri("https://cddataexchange.blob.core.windows.net") };
+        private readonly ILogger<TravelPlannerController> _logger;
+        private readonly HttpClient _client;
 
-        private readonly ILogger<TravelPlannerController> logger;
-
-        public TravelPlannerController(ILogger<TravelPlannerController> logger)
+        public TravelPlannerController(ILogger<TravelPlannerController> logger, IHttpClientFactory factory)
         {
-            this.logger = logger;
+            _logger = logger;
+            _client = factory.CreateClient();
+            _client.BaseAddress = new Uri("https://cddataexchange.blob.core.windows.net");
         }
 
         [HttpGet]
@@ -28,12 +28,12 @@ namespace web.Controllers
             // Check for errors
             if (string.IsNullOrEmpty(from) || string.IsNullOrEmpty(to) || string.IsNullOrEmpty(start))
             {
-                logger.LogWarning("Invalid parameters.");
+                _logger.LogWarning("Invalid parameters.");
                 return BadRequest();
             }
 
             // Get all routes
-            var routesResponse = await HttpClient.GetAsync("/data-exchange/htl-homework/travelPlan.json");
+            var routesResponse = await _client.GetAsync("/data-exchange/htl-homework/travelPlan.json");
             routesResponse.EnsureSuccessStatusCode();
             var responseBody = await routesResponse.Content.ReadAsStringAsync();
             var routes = JsonSerializer.Deserialize<Route[]>(responseBody);
@@ -43,7 +43,7 @@ namespace web.Controllers
             var trip = finder.FindConnection(from, to, start);
             if (trip == null)
             {
-                logger.LogWarning("No connection found.");
+                _logger.LogWarning("No connection found.");
                 return NotFound();
             }
 
